@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:handy_tdlib/api.dart' as td;
 import 'package:handy_tdlib/client.dart';
+import 'package:handy_tdlib/handy_tdlib.dart' show convertJsonToObject;
 import 'package:path_provider/path_provider.dart';
 
 /// Core TDLib service — manages client lifecycle, auth, and API calls.
@@ -59,7 +59,6 @@ class TdlibService extends ChangeNotifier {
       applicationVersion: '0.1.0',
       systemVersion: 'Android',
       databaseEncryptionKey: '',
-      enableStorageOptimizer: true,
     ));
 
     _isInitialized = true;
@@ -79,7 +78,7 @@ class TdlibService extends ChangeNotifier {
   }
 
   void _receiveUpdates() {
-    final response = TdPlugin.instance.tdReceive(_clientId!);
+    final response = TdPlugin.instance.tdReceive();
     if (response == null) return;
 
     final object = convertJsonToObject(response);
