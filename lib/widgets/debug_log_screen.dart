@@ -9,9 +9,8 @@ class DebugLogScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logs = context.watch<DebugLogService>();
+    final logs = context.read<DebugLogService>();
     final theme = Theme.of(context);
-    final entries = logs.entries;
 
     return Scaffold(
       appBar: AppBar(
@@ -20,7 +19,7 @@ class DebugLogScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.copy_all_outlined),
             onPressed: () async {
-              final text = entries.map((e) => e.line).join('\n');
+              final text = logs.exportText();
               await Clipboard.setData(ClipboardData(text: text));
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -32,7 +31,7 @@ class DebugLogScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () async {
-              final text = entries.map((e) => e.line).join('\n');
+              final text = logs.exportText();
               if (text.isEmpty) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -54,43 +53,48 @@ class DebugLogScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: entries.isEmpty
-          ? Center(
+      body: Selector<DebugLogService, List<DebugLogEntry>>(
+        selector: (_, service) => service.entries,
+        builder: (context, entries, _) {
+          if (entries.isEmpty) {
+            return Center(
               child: Text(
                 'No logs yet',
                 style: theme.textTheme.titleMedium,
               ),
-            )
-          : ListView.separated(
-              reverse: false,
-              padding: const EdgeInsets.all(12),
-              itemCount: entries.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final entry = entries[index];
-                final color = switch (entry.level) {
-                  DebugLogLevel.info => theme.colorScheme.primary,
-                  DebugLogLevel.warning => Colors.orange,
-                  DebugLogLevel.error => theme.colorScheme.error,
-                };
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: color.withValues(alpha: 0.35)),
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: entries.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final entry = entries[entries.length - 1 - index];
+              final color = switch (entry.level) {
+                DebugLogLevel.info => theme.colorScheme.primary,
+                DebugLogLevel.warning => Colors.orange,
+                DebugLogLevel.error => theme.colorScheme.error,
+              };
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withValues(alpha: 0.35)),
+                ),
+                child: SelectableText(
+                  entry.line,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    color: color,
                   ),
-                  child: SelectableText(
-                    entry.line,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      color: color,
-                    ),
-                  ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

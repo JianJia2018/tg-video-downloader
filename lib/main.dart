@@ -86,21 +86,17 @@ class AppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tdlib = context.watch<TdlibService>();
-    final logger = context.read<DebugLogService>();
 
     if (!tdlib.isInitialized) {
-      logger.info('AppRoot', 'Waiting for TDLib initialization');
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (!tdlib.isAuthorized) {
-      logger.info('AppRoot', 'TDLib initialized, waiting for authorization');
       return const AuthScreen();
     }
 
-    logger.info('AppRoot', 'Authorization ready, opening channels screen');
     return const ChannelsScreen();
   }
 }

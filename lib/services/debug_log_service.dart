@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 
 enum DebugLogLevel { info, warning, error }
 
@@ -25,8 +26,17 @@ class DebugLogEntry {
 
 class DebugLogService extends ChangeNotifier {
   final List<DebugLogEntry> _entries = [];
+  bool _notifyScheduled = false;
 
-  List<DebugLogEntry> get entries => List.unmodifiable(_entries.reversed);
+  List<DebugLogEntry> get entries => List.unmodifiable(_entries);
+  int get entryCount => _entries.length;
+
+  String exportText() {
+    if (_entries.isEmpty) {
+      return '';
+    }
+    return _entries.map((e) => e.line).join('\n');
+  }
 
   void info(String tag, String message) => _add(DebugLogLevel.info, tag, message);
 
@@ -37,7 +47,7 @@ class DebugLogService extends ChangeNotifier {
 
   void clear() {
     _entries.clear();
-    notifyListeners();
+    _scheduleNotify();
   }
 
   void _add(DebugLogLevel level, String tag, String message) {
@@ -52,7 +62,20 @@ class DebugLogService extends ChangeNotifier {
     if (_entries.length > 500) {
       _entries.removeRange(0, _entries.length - 500);
     }
-    debugPrint(_entries.last.line);
-    notifyListeners();
+    if (kDebugMode) {
+      debugPrint(_entries.last.line);
+    }
+    _scheduleNotify();
+  }
+
+  void _scheduleNotify() {
+    if (_notifyScheduled) {
+      return;
+    }
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      notifyListeners();
+    });
   }
 }

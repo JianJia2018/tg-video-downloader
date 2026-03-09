@@ -10,7 +10,7 @@ class DebugLogFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final count = context.select<DebugLogService, int>((s) => s.entries.length);
+    final count = context.select<DebugLogService, int>((s) => s.entryCount);
 
     return SafeArea(
       child: Padding(
