@@ -1,5 +1,3 @@
-rootProject.name = 'tg_video_downloader'
-
 pluginManagement {
     def flutterSdkPath = {
         def properties = new Properties()
@@ -19,3 +17,5 @@ plugins {
 }
 
 include ":app"
+
+rootProject.name = 'tg_video_downloader'
