@@ -46,6 +46,7 @@ class TdlibService extends ChangeNotifier {
     // Send initial parameters
     final appDir = await getApplicationDocumentsDirectory();
     await invoke(td.SetTdlibParameters(
+      useTestDc: false,
       apiId: const int.fromEnvironment('TELEGRAM_API_ID'),
       apiHash: const String.fromEnvironment('TELEGRAM_API_HASH'),
       databaseDirectory: '${appDir.path}/tdlib',
