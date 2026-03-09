@@ -52,10 +52,14 @@ This project is designed to build entirely in CI — no local Flutter/Android SD
 |---|---|
 | `TELEGRAM_API_ID` | Your Telegram api_id |
 | `TELEGRAM_API_HASH` | Your Telegram api_hash |
-| `KEYSTORE_BASE64` | `base64 -i release-key.jks` output |
-| `KEYSTORE_PASSWORD` | Keystore store password |
-| `KEY_ALIAS` | `release` (or your alias) |
-| `KEY_PASSWORD` | Key password |
+| `KEYSTORE_BASE64` | Base64 content of `release-key.jks` |
+| `PASSWORD` | The single password used for both the keystore and key |
+
+Notes:
+- `KEYSTORE_BASE64` is still required for release signing. It contains the actual keystore file.
+- `KEY_ALIAS` is fixed to `release` in CI, so you do not need a separate secret for it.
+- `PASSWORD` is used for both `storePassword` and `keyPassword`, so generate your keystore with the same password for both.
+- If you want the simplest setup, create the keystore with alias `release`.
 
 4. Push to `main` branch — GitHub Actions builds the APK automatically
 5. Download APK from **Actions → Build Android APK → Artifacts**

@@ -52,10 +52,14 @@ keytool -genkey -v -keystore release-key.jks \
 |---|---|
 | `TELEGRAM_API_ID` | 你的 Telegram api_id |
 | `TELEGRAM_API_HASH` | 你的 Telegram api_hash |
-| `KEYSTORE_BASE64` | `base64 -i release-key.jks` 的输出 |
-| `KEYSTORE_PASSWORD` | 密钥库密码 |
-| `KEY_ALIAS` | `release`（或你自定义的别名） |
-| `KEY_PASSWORD` | 密钥密码 |
+| `KEYSTORE_BASE64` | `release-key.jks` 的 Base64 内容 |
+| `PASSWORD` | 同时用于 keystore 和 key 的单一密码 |
+
+说明：
+- `KEYSTORE_BASE64` 仍然必须保留，因为它就是 Release 签名所需的 keystore 文件本体。
+- `KEY_ALIAS` 在 CI 中固定为 `release`，所以不再需要单独的 secret。
+- `PASSWORD` 同时作为 `storePassword` 和 `keyPassword`，因此生成 keystore 时建议两者设置为同一个密码。
+- 如果你想要最简单的配置，生成 keystore 时把 alias 也设置成 `release`。
 
 4. 推送到 `main` 分支 — GitHub Actions 自动构建 APK
 5. 在 **Actions → Build Android APK → Artifacts** 下载 APK
