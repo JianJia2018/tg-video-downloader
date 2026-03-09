@@ -92,6 +92,23 @@ keytool -genkey -v -keystore release-key.jks \
 
 所以你之前看到的 123MB，主要就是因为当时打的是把所有原生架构都打进去的通用 APK。
 
+## App 内调试日志与一键分享
+
+应用右下角带有一个悬浮调试按钮。
+
+- 点击后可打开 **Debug Logs** 页面
+- 可以使用 **Copy** 复制全部日志
+- 可以使用 **Share** 调起 Android 系统分享面板
+
+分享是通过系统分享面板完成的，因此日志可以发送到：
+
+- Telegram / 微信 / 邮件
+- 笔记类应用
+- Nearby Share
+- 任何支持接收文本分享的已安装应用
+
+这和“应用自己在局域网里开一个网页日志服务”不是一回事。如果你想要真正通过浏览器在局域网访问日志，还需要额外实现本地 HTTP server 功能。
+
 4. 推送到 `main` 分支 — GitHub Actions 自动构建 APK
 5. 在 **Actions → Build Android APK → Artifacts** 下载 APK
 

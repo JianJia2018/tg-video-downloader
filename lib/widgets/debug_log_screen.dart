@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:tg_video_downloader/services/debug_log_service.dart';
 
 class DebugLogScreen extends StatelessWidget {
@@ -26,6 +27,27 @@ class DebugLogScreen extends StatelessWidget {
                   const SnackBar(content: Text('Logs copied')),
                 );
               }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () async {
+              final text = entries.map((e) => e.line).join('\n');
+              if (text.isEmpty) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No logs to share')),
+                  );
+                }
+                return;
+              }
+
+              await SharePlus.instance.share(
+                ShareParams(
+                  text: text,
+                  subject: 'TG Video Downloader Debug Logs',
+                ),
+              );
             },
           ),
           IconButton(

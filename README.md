@@ -92,6 +92,23 @@ Recommended choice:
 
 This is why the original package looked very large: the universal APK included all native architectures in one file.
 
+## In-app debug logs and sharing
+
+The app includes a floating debug button in the bottom-right corner.
+
+- Tap it to open the **Debug Logs** screen
+- Use **Copy** to copy all logs
+- Use **Share** to open the Android system share sheet
+
+Sharing uses the system share panel, so logs can be sent to:
+
+- Telegram / WeChat / email
+- Notes apps
+- Nearby Share
+- Any installed app that supports receiving shared text
+
+This is not the same as the app running its own LAN server. If you want true browser-based LAN log access, that would need a separate local HTTP server feature.
+
 4. Push to `main` branch — GitHub Actions builds the APK automatically
 5. Download APK from **Actions → Build Android APK → Artifacts**
 
