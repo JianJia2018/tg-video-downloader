@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:handy_tdlib/api.dart' as td;
 import 'package:tg_video_downloader/services/tdlib_service.dart';
 import 'package:tg_video_downloader/services/download_manager.dart';
+import 'package:tg_video_downloader/services/debug_log_service.dart';
 import 'package:tg_video_downloader/features/downloads/downloads_screen.dart';
 
 class ChannelsScreen extends StatefulWidget {
@@ -23,14 +24,18 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     // Attach download manager to tdlib service
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tdlib = context.read<TdlibService>();
+      tdlib.logger = context.read<DebugLogService>();
       final dm = context.read<DownloadManager>();
       dm.attachTdlib(tdlib);
+      context.read<DebugLogService>().info('Channels', 'Attached download manager and debug logger');
     });
   }
 
   Future<void> _loadChats() async {
     final tdlib = context.read<TdlibService>();
+    final logger = context.read<DebugLogService>();
     try {
+      logger.info('Channels', 'Loading chats');
       final result = await tdlib.getChats(limit: 100);
       if (result is td.Chats) {
         final chats = <td.Chat>[];
@@ -44,8 +49,10 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
           _chats = chats;
           _isLoading = false;
         });
+        logger.info('Channels', 'Loaded ${chats.length} chats');
       }
     } catch (e) {
+      logger.error('Channels', 'Failed to load chats: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -186,7 +193,9 @@ class _ChatMediaScreenState extends State<_ChatMediaScreen> {
 
   Future<void> _loadVideos() async {
     final tdlib = context.read<TdlibService>();
+    final logger = context.read<DebugLogService>();
     try {
+      logger.info('Videos', 'Loading videos for chat ${widget.chat.title}');
       final result = await tdlib.getChatHistory(
         widget.chat.id,
         fromMessageId: _lastMessageId,
@@ -205,8 +214,10 @@ class _ChatMediaScreenState extends State<_ChatMediaScreen> {
           _videoMessages.addAll(videos);
           _isLoading = false;
         });
+        logger.info('Videos', 'Loaded ${videos.length} video messages');
       }
     } catch (e) {
+      logger.error('Videos', 'Failed to load videos: $e');
       setState(() => _isLoading = false);
     }
   }

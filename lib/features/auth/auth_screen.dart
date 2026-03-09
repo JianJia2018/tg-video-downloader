@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tg_video_downloader/services/debug_log_service.dart';
 import 'package:tg_video_downloader/services/tdlib_service.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -95,6 +96,9 @@ class _AuthScreenState extends State<AuthScreen> {
     final value = _controller.text.trim();
     if (value.isEmpty) return;
 
+    final logger = context.read<DebugLogService>();
+    logger.info('Auth', 'Submitting auth step: ${tdlib.authState}');
+
     setState(() => _isLoading = true);
 
     switch (tdlib.authState) {
@@ -109,6 +113,7 @@ class _AuthScreenState extends State<AuthScreen> {
         break;
     }
 
+    logger.info('Auth', 'Finished auth step: ${tdlib.authState}');
     _controller.clear();
     setState(() => _isLoading = false);
   }

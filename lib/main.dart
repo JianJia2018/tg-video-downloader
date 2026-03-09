@@ -1,23 +1,44 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tg_video_downloader/services/tdlib_service.dart';
 import 'package:tg_video_downloader/services/download_manager.dart';
+import 'package:tg_video_downloader/services/debug_log_service.dart';
 import 'package:tg_video_downloader/features/auth/auth_screen.dart';
 import 'package:tg_video_downloader/features/channels/channels_screen.dart';
+import 'package:tg_video_downloader/widgets/debug_log_fab.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const TgDownloaderApp());
+
+  final logger = DebugLogService();
+  FlutterError.onError = (details) {
+    logger.error('FlutterError', details.exceptionAsString());
+    FlutterError.presentError(details);
+  };
+
+  runZonedGuarded(
+    () {
+      logger.info('App', 'Application starting');
+      runApp(TgDownloaderApp(logger: logger));
+    },
+    (error, stack) {
+      logger.error('Zone', '$error\n$stack');
+    },
+  );
 }
 
 class TgDownloaderApp extends StatelessWidget {
-  const TgDownloaderApp({super.key});
+  final DebugLogService logger;
+
+  const TgDownloaderApp({super.key, required this.logger});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => TdlibService()),
+        ChangeNotifierProvider.value(value: logger),
+        ChangeNotifierProvider(create: (_) => TdlibService()..logger = logger),
         ChangeNotifierProvider(create: (_) => DownloadManager()),
       ],
       child: MaterialApp(
@@ -42,6 +63,14 @@ class TgDownloaderApp extends StatelessWidget {
           useMaterial3: true,
         ),
         themeMode: ThemeMode.system,
+        builder: (context, child) {
+          return Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              const DebugLogFab(),
+            ],
+          );
+        },
         home: const AppRoot(),
       ),
     );
@@ -54,17 +83,21 @@ class AppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tdlib = context.watch<TdlibService>();
+    final logger = context.read<DebugLogService>();
 
     if (!tdlib.isInitialized) {
+      logger.info('AppRoot', 'Waiting for TDLib initialization');
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (!tdlib.isAuthorized) {
+      logger.info('AppRoot', 'TDLib initialized, waiting for authorization');
       return const AuthScreen();
     }
 
+    logger.info('AppRoot', 'Authorization ready, opening channels screen');
     return const ChannelsScreen();
   }
 }

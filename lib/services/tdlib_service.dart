@@ -5,6 +5,7 @@ import 'package:handy_tdlib/api.dart' as td;
 import 'package:handy_tdlib/client.dart';
 import 'package:handy_tdlib/handy_tdlib.dart' show convertJsonToObject;
 import 'package:path_provider/path_provider.dart';
+import 'package:tg_video_downloader/services/debug_log_service.dart';
 
 /// Core TDLib service — manages client lifecycle, auth, and API calls.
 ///
@@ -15,6 +16,7 @@ class TdlibService extends ChangeNotifier {
   int? _clientId;
   bool _isInitialized = false;
   bool _isAuthorized = false;
+  DebugLogService? logger;
 
   // Auth state
   String _authState = 'initial';
@@ -38,13 +40,16 @@ class TdlibService extends ChangeNotifier {
   }
 
   Future<void> _init() async {
+    logger?.info('TDLib', 'Creating TDLib client');
     _clientId = TdPlugin.instance.tdCreateClientId();
 
     // Start updates listener in background isolate
     _startUpdatesListener();
+    logger?.info('TDLib', 'Updates listener started');
 
     // Send initial parameters
     final appDir = await getApplicationDocumentsDirectory();
+    logger?.info('TDLib', 'Sending SetTdlibParameters');
     await invoke(td.SetTdlibParameters(
       useTestDc: false,
       apiId: const int.fromEnvironment('TELEGRAM_API_ID'),
@@ -63,6 +68,7 @@ class TdlibService extends ChangeNotifier {
     ));
 
     _isInitialized = true;
+    logger?.info('TDLib', 'Initialization finished');
     notifyListeners();
   }
 
@@ -96,6 +102,7 @@ class TdlibService extends ChangeNotifier {
 
     // Handle authorization state changes
     if (object is td.UpdateAuthorizationState) {
+      logger?.info('TDLib', 'Authorization state update: ${object.authorizationState.runtimeType}');
       _handleAuthState(object.authorizationState);
     }
   }
@@ -135,11 +142,13 @@ class TdlibService extends ChangeNotifier {
     final json = function.toJson();
     json['@extra'] = extra;
     TdPlugin.instance.tdSend(_clientId!, jsonEncode(json));
+    logger?.info('TDLib', 'Invoke sent: ${function.runtimeType}');
 
     return completer.future.timeout(
       const Duration(seconds: 30),
       onTimeout: () {
         _pendingInvokes.remove(extra);
+        logger?.error('TDLib', 'Invoke timed out: ${function.runtimeType}');
         throw TimeoutException('TDLib invoke timed out');
       },
     );
@@ -162,6 +171,7 @@ class TdlibService extends ChangeNotifier {
         ),
       ));
     } catch (e) {
+      logger?.error('Auth', 'Phone number submit failed: $e');
       _authError = e.toString();
       notifyListeners();
     }
@@ -171,6 +181,7 @@ class TdlibService extends ChangeNotifier {
     try {
       await invoke(td.CheckAuthenticationCode(code: code));
     } catch (e) {
+      logger?.error('Auth', 'Auth code submit failed: $e');
       _authError = e.toString();
       notifyListeners();
     }
@@ -180,6 +191,7 @@ class TdlibService extends ChangeNotifier {
     try {
       await invoke(td.CheckAuthenticationPassword(password: password));
     } catch (e) {
+      logger?.error('Auth', 'Password submit failed: $e');
       _authError = e.toString();
       notifyListeners();
     }
