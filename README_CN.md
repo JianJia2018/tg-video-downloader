@@ -82,13 +82,14 @@ keytool -genkey -v -keystore release-key.jks \
 
 - `app-armeabi-v7a-release.apk`
 - `app-arm64-v8a-release.apk`
-- `app-x86_64-release.apk`
+
+现在 CI 默认会跳过 `x86_64`，以便加快发布构建速度，因为真实手机通常只需要 `armeabi-v7a` 或 `arm64-v8a`。如果以后你需要专门给模拟器使用的 APK，再把 `x86_64` 打开即可。
 
 推荐下载：
 
 - 大多数新安卓手机：**`arm64-v8a`**
 - 老一点的 32 位设备：**`armeabi-v7a`**
-- 模拟器或部分特殊设备：**`x86_64`**
+- 模拟器或部分特殊设备：需要时单独构建 `x86_64` APK
 
 所以你之前看到的 123MB，主要就是因为当时打的是把所有原生架构都打进去的通用 APK。
 

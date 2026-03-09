@@ -45,6 +45,9 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -72,7 +75,7 @@ jobs:
 
       - name: Build Release APKs (split per ABI)
         run: |
-          flutter build apk --release --split-per-abi \
+          flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64 \
             --dart-define=TELEGRAM_API_ID=${{ github.event.inputs.telegram_api_id || secrets.TELEGRAM_API_ID }} \
             --dart-define=TELEGRAM_API_HASH=${{ github.event.inputs.telegram_api_hash || secrets.TELEGRAM_API_HASH }}
 
@@ -80,7 +83,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tg-downloader-apks
-          path: build/app/outputs/flutter-apk/app-*-release.apk
+          path: |
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           retention-days: 30
 
       # Auto-create GitHub Release when a tag is pushed
@@ -88,7 +93,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-*-release.apk
+          files: |
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,7 +106,9 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_tag }}
-          files: build/app/outputs/flutter-apk/app-*-release.apk
+          files: |
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

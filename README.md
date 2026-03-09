@@ -82,13 +82,14 @@ The GitHub Actions workflow now builds **split APKs per ABI**:
 
 - `app-armeabi-v7a-release.apk`
 - `app-arm64-v8a-release.apk`
-- `app-x86_64-release.apk`
+
+The CI workflow intentionally skips `x86_64` now to speed up release builds, because real phones usually only need `armeabi-v7a` or `arm64-v8a`. If you need an emulator-focused APK later, you can re-enable `x86_64` in the workflow.
 
 Recommended choice:
 
 - Most modern Android phones: **`arm64-v8a`**
 - Older 32-bit devices: **`armeabi-v7a`**
-- Android emulators / some special devices: **`x86_64`**
+- Android emulators / some special devices: build a dedicated `x86_64` APK when needed
 
 This is why the original package looked very large: the universal APK included all native architectures in one file.
 
