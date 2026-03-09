@@ -28,6 +28,8 @@ void main() {
   );
 }
 
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 class TgDownloaderApp extends StatelessWidget {
   final DebugLogService logger;
 
@@ -42,6 +44,7 @@ class TgDownloaderApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DownloadManager()),
       ],
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
         title: 'TG Downloader',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -67,7 +70,7 @@ class TgDownloaderApp extends StatelessWidget {
           return Stack(
             children: [
               child ?? const SizedBox.shrink(),
-              const DebugLogFab(),
+              DebugLogFab(navigatorKey: appNavigatorKey),
             ],
           );
         },

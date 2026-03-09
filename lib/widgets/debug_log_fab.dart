@@ -4,7 +4,9 @@ import 'package:tg_video_downloader/services/debug_log_service.dart';
 import 'package:tg_video_downloader/widgets/debug_log_screen.dart';
 
 class DebugLogFab extends StatelessWidget {
-  const DebugLogFab({super.key});
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  const DebugLogFab({super.key, required this.navigatorKey});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +20,7 @@ class DebugLogFab extends StatelessWidget {
           child: FloatingActionButton.small(
             heroTag: 'debug-log-fab',
             onPressed: () {
-              Navigator.of(context).push(
+              navigatorKey.currentState?.push(
                 MaterialPageRoute(builder: (_) => const DebugLogScreen()),
               );
             },
