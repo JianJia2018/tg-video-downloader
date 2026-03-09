@@ -16,6 +16,15 @@ on:
         description: 'Telegram API HASH for this build (optional, overrides repo secret)'
         required: false
         type: string
+      create_release:
+        description: 'Also publish this manual run to GitHub Releases'
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 'Tag name to use when create_release is true (example: v0.1.0-preview.1)'
+        required: false
+        type: string
 
 jobs:
   build:
@@ -77,6 +86,17 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release (manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' && github.event.inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: ${{ github.event.inputs.release_tag }}
           files: build/app/outputs/flutter-apk/app-release.apk
           generate_release_notes: true
         env:
