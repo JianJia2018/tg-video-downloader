@@ -13,6 +13,7 @@ import 'package:tg_video_downloader/services/debug_log_service.dart';
 ///   - Invokes isolate: sends requests to TDLib
 ///   - Updates isolate: receives responses and updates from TDLib
 class TdlibService extends ChangeNotifier {
+  static bool _pluginInitialized = false;
   int? _clientId;
   bool _isInitialized = false;
   bool _isAuthorized = false;
@@ -40,36 +41,47 @@ class TdlibService extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    logger?.info('TDLib', 'Creating TDLib client');
-    _clientId = TdPlugin.instance.tdCreateClientId();
+    try {
+      if (!_pluginInitialized) {
+        logger?.info('TDLib', 'Initializing TdPlugin');
+        await TdPlugin.initialize();
+        _pluginInitialized = true;
+        logger?.info('TDLib', 'TdPlugin initialized');
+      }
 
-    // Start updates listener in background isolate
-    _startUpdatesListener();
-    logger?.info('TDLib', 'Updates listener started');
+      logger?.info('TDLib', 'Creating TDLib client');
+      _clientId = TdPlugin.instance.tdCreateClientId();
 
-    // Send initial parameters
-    final appDir = await getApplicationDocumentsDirectory();
-    logger?.info('TDLib', 'Sending SetTdlibParameters');
-    await invoke(td.SetTdlibParameters(
-      useTestDc: false,
-      apiId: const int.fromEnvironment('TELEGRAM_API_ID'),
-      apiHash: const String.fromEnvironment('TELEGRAM_API_HASH'),
-      databaseDirectory: '${appDir.path}/tdlib',
-      filesDirectory: '${appDir.path}/tdlib_files',
-      useMessageDatabase: true,
-      useFileDatabase: true,
-      useChatInfoDatabase: true,
-      useSecretChats: false,
-      systemLanguageCode: 'en',
-      deviceModel: 'Android',
-      applicationVersion: '0.1.0',
-      systemVersion: 'Android',
-      databaseEncryptionKey: '',
-    ));
+      _startUpdatesListener();
+      logger?.info('TDLib', 'Updates listener started');
 
-    _isInitialized = true;
-    logger?.info('TDLib', 'Initialization finished');
-    notifyListeners();
+      final appDir = await getApplicationDocumentsDirectory();
+      logger?.info('TDLib', 'Sending SetTdlibParameters');
+      await invoke(td.SetTdlibParameters(
+        useTestDc: false,
+        apiId: const int.fromEnvironment('TELEGRAM_API_ID'),
+        apiHash: const String.fromEnvironment('TELEGRAM_API_HASH'),
+        databaseDirectory: '${appDir.path}/tdlib',
+        filesDirectory: '${appDir.path}/tdlib_files',
+        useMessageDatabase: true,
+        useFileDatabase: true,
+        useChatInfoDatabase: true,
+        useSecretChats: false,
+        systemLanguageCode: 'en',
+        deviceModel: 'Android',
+        applicationVersion: '0.0.6',
+        systemVersion: 'Android',
+        databaseEncryptionKey: '',
+      ));
+
+      _isInitialized = true;
+      logger?.info('TDLib', 'Initialization finished');
+      notifyListeners();
+    } catch (e, stack) {
+      _authError = e.toString();
+      logger?.error('TDLib', 'Initialization failed: $e\n$stack');
+      notifyListeners();
+    }
   }
 
   void _startUpdatesListener() {
