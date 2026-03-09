@@ -58,6 +58,23 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Derive build version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            BUILD_NAME="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.release_tag }}" ]]; then
+            BUILD_NAME="${{ github.event.inputs.release_tag }}"
+            BUILD_NAME="${BUILD_NAME#v}"
+          else
+            BUILD_NAME="0.0.0"
+          fi
+
+          BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
+
+          echo "BUILD_NAME=${BUILD_NAME}" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$GITHUB_ENV"
+
       # Decode keystore from base64 secret
       - name: Decode Keystore
         run: |
@@ -76,6 +93,8 @@ jobs:
       - name: Build Release APKs (split per ABI)
         run: |
           flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64 \
+            --build-name="${BUILD_NAME}" \
+            --build-number="${BUILD_NUMBER}" \
             --dart-define=TELEGRAM_API_ID=${{ github.event.inputs.telegram_api_id || secrets.TELEGRAM_API_ID }} \
             --dart-define=TELEGRAM_API_HASH=${{ github.event.inputs.telegram_api_hash || secrets.TELEGRAM_API_HASH }}
 

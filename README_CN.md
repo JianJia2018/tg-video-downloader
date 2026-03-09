@@ -122,6 +122,13 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
+对于 tag 构建，GitHub Actions 现在会自动推导：
+
+- `build-name`：从 tag 提取（例如 `v0.0.6` → `0.0.6`）
+- `build-number`：使用 `github.run_number`
+
+所以以后发版时，不需要每次都手动修改 `pubspec.yaml`，除非你希望仓库里的文件版本号也同步一致。
+
 ### 本地构建（如已安装 Flutter SDK）
 
 ```bash

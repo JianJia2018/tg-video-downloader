@@ -122,6 +122,13 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
+For tag builds, GitHub Actions now automatically derives:
+
+- `build-name` from the tag (example: `v0.0.6` → `0.0.6`)
+- `build-number` from `github.run_number`
+
+So you do not need to manually edit `pubspec.yaml` for every release tag unless you specifically want the file in the repository to match.
+
 ### Local Build (if Flutter SDK is installed)
 
 ```bash
