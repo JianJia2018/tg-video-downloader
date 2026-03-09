@@ -56,10 +56,23 @@ This project is designed to build entirely in CI — no local Flutter/Android SD
 | `PASSWORD` | The single password used for both the keystore and key |
 
 Notes:
+- For manual runs from the GitHub Actions page, users can enter their own `telegram_api_id` and `telegram_api_hash` as workflow inputs. Those values override the repository secrets for that run only.
+- For normal push/tag builds, the workflow still falls back to `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` repository secrets.
 - `KEYSTORE_BASE64` is still required for release signing. It contains the actual keystore file.
 - `KEY_ALIAS` is fixed to `release` in CI, so you do not need a separate secret for it.
 - `PASSWORD` is used for both `storePassword` and `keyPassword`, so generate your keystore with the same password for both.
 - If you want the simplest setup, create the keystore with alias `release`.
+
+### Build with your own Telegram credentials from the Actions page
+
+1. Open **Actions → Build Android APK**
+2. Click **Run workflow**
+3. Fill in:
+   - `telegram_api_id`
+   - `telegram_api_hash`
+4. Start the workflow
+
+This lets each user build an APK with their own Telegram API credentials instead of always using the repository owner's credentials.
 
 4. Push to `main` branch — GitHub Actions builds the APK automatically
 5. Download APK from **Actions → Build Android APK → Artifacts**

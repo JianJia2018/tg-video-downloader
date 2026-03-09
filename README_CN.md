@@ -56,10 +56,23 @@ keytool -genkey -v -keystore release-key.jks \
 | `PASSWORD` | 同时用于 keystore 和 key 的单一密码 |
 
 说明：
+- 如果是从 GitHub Actions 页面手动运行 workflow，用户可以直接填写 `telegram_api_id` 和 `telegram_api_hash` 输入项。本次构建会优先使用页面输入，而不是仓库 secret。
+- 如果是普通的 push/tag 自动构建，workflow 仍然会回退使用仓库中的 `TELEGRAM_API_ID` 和 `TELEGRAM_API_HASH`。
 - `KEYSTORE_BASE64` 仍然必须保留，因为它就是 Release 签名所需的 keystore 文件本体。
 - `KEY_ALIAS` 在 CI 中固定为 `release`，所以不再需要单独的 secret。
 - `PASSWORD` 同时作为 `storePassword` 和 `keyPassword`，因此生成 keystore 时建议两者设置为同一个密码。
 - 如果你想要最简单的配置，生成 keystore 时把 alias 也设置成 `release`。
+
+### 在 Actions 页面使用自己的 Telegram 凭证构建
+
+1. 打开 **Actions → Build Android APK**
+2. 点击 **Run workflow**
+3. 填写：
+   - `telegram_api_id`
+   - `telegram_api_hash`
+4. 启动构建
+
+这样每个用户都可以用自己的 Telegram API 凭证生成 APK，而不是固定使用仓库拥有者的凭证。
 
 4. 推送到 `main` 分支 — GitHub Actions 自动构建 APK
 5. 在 **Actions → Build Android APK → Artifacts** 下载 APK

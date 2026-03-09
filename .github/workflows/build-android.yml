@@ -7,6 +7,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      telegram_api_id:
+        description: 'Telegram API ID for this build (optional, overrides repo secret)'
+        required: false
+        type: string
+      telegram_api_hash:
+        description: 'Telegram API HASH for this build (optional, overrides repo secret)'
+        required: false
+        type: string
 
 jobs:
   build:
@@ -52,8 +61,8 @@ jobs:
       - name: Build Release APK
         run: |
           flutter build apk --release \
-            --dart-define=TELEGRAM_API_ID=${{ secrets.TELEGRAM_API_ID }} \
-            --dart-define=TELEGRAM_API_HASH=${{ secrets.TELEGRAM_API_HASH }}
+            --dart-define=TELEGRAM_API_ID=${{ github.event.inputs.telegram_api_id || secrets.TELEGRAM_API_ID }} \
+            --dart-define=TELEGRAM_API_HASH=${{ github.event.inputs.telegram_api_hash || secrets.TELEGRAM_API_HASH }}
 
       # Upload APK as artifact (downloadable from Actions tab)
       - name: Upload APK Artifact
