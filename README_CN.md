@@ -74,6 +74,24 @@ keytool -genkey -v -keystore release-key.jks \
 
 这样每个用户都可以用自己的 Telegram API 凭证生成 APK，而不是固定使用仓库拥有者的凭证。
 
+## 为什么 APK 很大，以及现在的分包方式
+
+这个项目使用了 TDLib 以及其他 Android 原生库，所以如果构建的是一个 **universal APK**，它会把多个 CPU 架构一起打进去，体积就会明显变大。
+
+现在 GitHub Actions 已经改成按 **ABI 分包**，会生成：
+
+- `app-armeabi-v7a-release.apk`
+- `app-arm64-v8a-release.apk`
+- `app-x86_64-release.apk`
+
+推荐下载：
+
+- 大多数新安卓手机：**`arm64-v8a`**
+- 老一点的 32 位设备：**`armeabi-v7a`**
+- 模拟器或部分特殊设备：**`x86_64`**
+
+所以你之前看到的 123MB，主要就是因为当时打的是把所有原生架构都打进去的通用 APK。
+
 4. 推送到 `main` 分支 — GitHub Actions 自动构建 APK
 5. 在 **Actions → Build Android APK → Artifacts** 下载 APK
 

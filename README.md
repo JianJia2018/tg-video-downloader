@@ -74,6 +74,24 @@ Notes:
 
 This lets each user build an APK with their own Telegram API credentials instead of always using the repository owner's credentials.
 
+## APK size and ABI split builds
+
+The project uses TDLib and other native Android libraries, so a universal APK can become very large because it bundles multiple CPU architectures together.
+
+The GitHub Actions workflow now builds **split APKs per ABI**:
+
+- `app-armeabi-v7a-release.apk`
+- `app-arm64-v8a-release.apk`
+- `app-x86_64-release.apk`
+
+Recommended choice:
+
+- Most modern Android phones: **`arm64-v8a`**
+- Older 32-bit devices: **`armeabi-v7a`**
+- Android emulators / some special devices: **`x86_64`**
+
+This is why the original package looked very large: the universal APK included all native architectures in one file.
+
 4. Push to `main` branch — GitHub Actions builds the APK automatically
 5. Download APK from **Actions → Build Android APK → Artifacts**
 
