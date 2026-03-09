@@ -1,0 +1,32 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/release/
+*.jks
+*.keystore
+
+# iOS (not used but just in case)
+ios/Pods/
+ios/.symlinks/
+
+# Secrets
+.env
+*.env
+
+# Generated
+*.g.dart
+*.freezed.dart
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
