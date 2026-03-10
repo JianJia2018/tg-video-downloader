@@ -7,6 +7,8 @@ import 'package:tg_video_downloader/services/debug_log_service.dart';
 class DebugLogScreen extends StatelessWidget {
   const DebugLogScreen({super.key});
 
+  static const _rowTextStyle = TextStyle(fontFamily: 'monospace');
+
   @override
   Widget build(BuildContext context) {
     final logs = context.read<DebugLogService>();
@@ -53,10 +55,13 @@ class DebugLogScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Selector<DebugLogService, List<DebugLogEntry>>(
-        selector: (_, service) => service.entries,
-        builder: (context, entries, _) {
-          if (entries.isEmpty) {
+      body: Selector<DebugLogService, ({int count, int revision})>(
+        selector: (_, service) => (
+          count: service.entryCount,
+          revision: service.revision,
+        ),
+        builder: (context, snapshot, _) {
+          if (snapshot.count == 0) {
             return Center(
               child: Text(
                 'No logs yet',
@@ -65,29 +70,33 @@ class DebugLogScreen extends StatelessWidget {
             );
           }
 
-          return ListView.separated(
+          return ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: entries.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemCount: snapshot.count,
             itemBuilder: (context, index) {
-              final entry = entries[entries.length - 1 - index];
+              final entry = logs.entryAtReversedIndex(index);
               final color = switch (entry.level) {
                 DebugLogLevel.info => theme.colorScheme.primary,
                 DebugLogLevel.warning => Colors.orange,
                 DebugLogLevel.error => theme.colorScheme.error,
               };
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: color.withValues(alpha: 0.35)),
-                ),
-                child: SelectableText(
-                  entry.line,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                    color: color,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: RepaintBoundary(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: color.withValues(alpha: 0.35)),
+                    ),
+                    child: Text(
+                      entry.line,
+                      style: (theme.textTheme.bodySmall ?? _rowTextStyle).copyWith(
+                        fontFamily: _rowTextStyle.fontFamily,
+                        color: color,
+                      ),
+                    ),
                   ),
                 ),
               );
