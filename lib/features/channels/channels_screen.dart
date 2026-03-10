@@ -4,7 +4,7 @@ import 'package:handy_tdlib/api.dart' as td;
 import 'package:tg_video_downloader/services/tdlib_service.dart';
 import 'package:tg_video_downloader/services/download_manager.dart';
 import 'package:tg_video_downloader/services/debug_log_service.dart';
-import 'package:tg_video_downloader/features/downloads/downloads_screen.dart';
+import 'package:tg_video_downloader/features/channels/detail_screen.dart';
 
 class ChannelsScreen extends StatefulWidget {
   const ChannelsScreen({super.key});
@@ -220,6 +220,19 @@ class _ChatTile extends StatelessWidget {
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DetailScreen(chat: chat),
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DetailScreen(chat: chat),
+          ),
+        );
+      },
         Navigator.push(
           context,
           MaterialPageRoute(
