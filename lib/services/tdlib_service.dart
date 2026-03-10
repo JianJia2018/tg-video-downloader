@@ -136,7 +136,7 @@ class TdlibService extends ChangeNotifier {
         databaseEncryptionKey: '',
       ));
 
-      if (response is td.Error) {
+      if (response is td.TdError) {
         throw Exception('TDLib init error ${response.code}: ${response.message}');
       }
 
