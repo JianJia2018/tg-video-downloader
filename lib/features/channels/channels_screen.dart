@@ -226,7 +226,7 @@ class _ChatTile extends StatelessWidget {
             builder: (_) => DetailScreen(chat: chat),
           ),
         );
-      },
+      }
     );
     );
   }

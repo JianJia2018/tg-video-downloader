@@ -376,7 +376,7 @@ class _MessageDetailTile extends StatelessWidget {
       task: task,
       icon: Icons.image,
       title: 'Photo ${message.id}',
-      subtitle: 'Photo · ${photo.sizes.length} sizes',
+      subtitle: 'Photo · ${photo.photo.sizes.length} sizes',
     );
   }
 
