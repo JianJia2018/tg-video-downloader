@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:tg_video_downloader/services/tdlib_service.dart';
 import 'package:tg_video_downloader/services/download_manager.dart';
 import 'package:tg_video_downloader/services/debug_log_service.dart';
+import 'package:tg_video_downloader/features/auth/api_credentials_screen.dart';
 import 'package:tg_video_downloader/features/auth/auth_screen.dart';
+import 'package:tg_video_downloader/features/auth/init_error_screen.dart';
 import 'package:tg_video_downloader/features/channels/channels_screen.dart';
 import 'package:tg_video_downloader/widgets/debug_log_fab.dart';
 
@@ -87,7 +89,21 @@ class AppRoot extends StatelessWidget {
   Widget build(BuildContext context) {
     final tdlib = context.watch<TdlibService>();
 
-    if (!tdlib.isInitialized) {
+    if (!tdlib.credentialsLoaded) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!tdlib.hasCredentials) {
+      return const ApiCredentialsScreen();
+    }
+
+    if (tdlib.initError != null && !tdlib.isInitialized) {
+      return const InitErrorScreen();
+    }
+
+    if (tdlib.isInitializing || !tdlib.isInitialized) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );

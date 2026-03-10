@@ -5,6 +5,7 @@ import 'package:handy_tdlib/api.dart' as td;
 import 'package:handy_tdlib/client.dart';
 import 'package:handy_tdlib/handy_tdlib.dart' show convertJsonToObject;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tg_video_downloader/services/debug_log_service.dart';
 
 /// Core TDLib service — manages client lifecycle, auth, and API calls.
@@ -16,9 +17,15 @@ class TdlibService extends ChangeNotifier {
   static bool _pluginInitialized = false;
   static const _updatePollInterval = Duration(milliseconds: 250);
   static const _maxUpdatesPerDrain = 24;
+  static const _prefsApiIdKey = 'telegram_api_id';
+  static const _prefsApiHashKey = 'telegram_api_hash';
   int? _clientId;
+  int? _apiId;
+  String? _apiHash;
   bool _isInitialized = false;
+  bool _isInitializing = false;
   bool _isAuthorized = false;
+  bool _credentialsLoaded = false;
   DebugLogService? logger;
   Timer? _updatesTimer;
   bool _isDrainingUpdates = false;
@@ -26,26 +33,77 @@ class TdlibService extends ChangeNotifier {
   // Auth state
   String _authState = 'initial';
   String? _authError;
+  String? _initError;
 
   // Stream controller for TDLib updates
   final _updateController = StreamController<td.TdObject>.broadcast();
   Stream<td.TdObject> get updates => _updateController.stream;
 
   bool get isInitialized => _isInitialized;
+  bool get isInitializing => _isInitializing;
   bool get isAuthorized => _isAuthorized;
+  bool get credentialsLoaded => _credentialsLoaded;
+  bool get hasCredentials => _apiId != null && (_apiHash?.isNotEmpty ?? false);
   String get authState => _authState;
   String? get authError => _authError;
+  String? get initError => _initError;
   int? get clientId => _clientId;
 
   // Pending invoke completers keyed by 'extra' field
   final Map<String, Completer<td.TdObject>> _pendingInvokes = {};
 
   TdlibService() {
-    _init();
+    _bootstrap();
   }
 
-  Future<void> _init() async {
+  Future<void> _bootstrap() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedApiId = prefs.getInt(_prefsApiIdKey);
+    final storedApiHash = prefs.getString(_prefsApiHashKey);
+
+    _apiId = storedApiId;
+    _apiHash = storedApiHash;
+    _credentialsLoaded = true;
+    logger?.info('TDLib', 'Credential bootstrap finished. hasCredentials=$hasCredentials');
+    notifyListeners();
+
+    if (hasCredentials) {
+      await configureAndInit(
+        apiId: _apiId!,
+        apiHash: _apiHash!,
+        persist: false,
+      );
+    }
+  }
+
+  Future<void> configureAndInit({
+    required int apiId,
+    required String apiHash,
+    bool persist = true,
+  }) async {
+    if (_isInitializing) {
+      return;
+    }
+
+    _apiId = apiId;
+    _apiHash = apiHash;
+    _initError = null;
+    _authError = null;
+    _isInitializing = true;
+    _isInitialized = false;
+    _isAuthorized = false;
+    _authState = 'initial';
+    _updatesTimer?.cancel();
+    _clientId = null;
+    notifyListeners();
+
     try {
+      if (persist) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_prefsApiIdKey, apiId);
+        await prefs.setString(_prefsApiHashKey, apiHash);
+      }
+
       if (!_pluginInitialized) {
         logger?.info('TDLib', 'Initializing TdPlugin');
         await TdPlugin.initialize();
@@ -61,10 +119,10 @@ class TdlibService extends ChangeNotifier {
 
       final appDir = await getApplicationDocumentsDirectory();
       logger?.info('TDLib', 'Sending SetTdlibParameters');
-      await invoke(td.SetTdlibParameters(
+      final response = await invoke(td.SetTdlibParameters(
         useTestDc: false,
-        apiId: const int.fromEnvironment('TELEGRAM_API_ID'),
-        apiHash: const String.fromEnvironment('TELEGRAM_API_HASH'),
+        apiId: apiId,
+        apiHash: apiHash,
         databaseDirectory: '${appDir.path}/tdlib',
         filesDirectory: '${appDir.path}/tdlib_files',
         useMessageDatabase: true,
@@ -78,14 +136,45 @@ class TdlibService extends ChangeNotifier {
         databaseEncryptionKey: '',
       ));
 
+      if (response is td.Error) {
+        throw Exception('TDLib init error ${response.code}: ${response.message}');
+      }
+
       _isInitialized = true;
+      _isInitializing = false;
       logger?.info('TDLib', 'Initialization finished');
       notifyListeners();
     } catch (e, stack) {
-      _authError = e.toString();
+      _isInitializing = false;
+      _initError = e.toString();
       logger?.error('TDLib', 'Initialization failed: $e\n$stack');
       notifyListeners();
     }
+  }
+
+  Future<void> retryInitialization() async {
+    if (!hasCredentials) {
+      return;
+    }
+    await configureAndInit(apiId: _apiId!, apiHash: _apiHash!, persist: false);
+  }
+
+  Future<void> clearCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsApiIdKey);
+    await prefs.remove(_prefsApiHashKey);
+
+    _apiId = null;
+    _apiHash = null;
+    _updatesTimer?.cancel();
+    _clientId = null;
+    _isInitialized = false;
+    _isInitializing = false;
+    _isAuthorized = false;
+    _initError = null;
+    _authError = null;
+    _authState = 'initial';
+    notifyListeners();
   }
 
   void _startUpdatesListener() {
