@@ -43,7 +43,7 @@ flutter analyze
 dart format lib/ test/
 ```
 
-**CI**: GitHub Actions builds on push to `main`, tags `v*`, and PRs. See `.github/workflows/build-android.yml`. Release APKs are signed with keystore from GitHub Secrets.
+**CI**: GitHub Actions builds on push to `main`, tags matching `v*`, PRs, and manual `workflow_dispatch` runs. See `.github/workflows/build-android.yml`. Release APKs are signed in CI from GitHub Secrets, and pushing a `v*` tag auto-creates a GitHub Release with attached APKs.
 
 ## Architecture
 
@@ -104,12 +104,14 @@ lib/
 
 ### State Management Pattern
 - Services extend `ChangeNotifier` and call `notifyListeners()` on state changes
-- Widgets use `context.watch<T>()` for reactive rebuilds
+- Prefer `Selector` / `context.select<T, R>()` for high-frequency or list-heavy UI to localize rebuilds
+- Use `context.watch<T>()` only when the whole widget genuinely depends on the full service state
 - Widgets use `context.read<T>()` for one-shot actions (button handlers)
 - Providers registered in `main.dart` via `MultiProvider`
 
 ### TDLib Patterns
-- TDLib runs on main isolate with `Timer.periodic(100ms)` polling for updates
+- TDLib currently runs on the main isolate with batched polling via `Timer.periodic(250ms)`
+- Polling drains multiple pending TDLib updates per tick to reduce UI-isolate wakeups under load
 - Invoke/response correlation via `extra` field (microsecond timestamps as string keys)
 - Use `Completer<td.TdObject>` for async invoke → response pattern
 - Auth state handled via sealed class switch: `AuthorizationStateWaitPhoneNumber`, etc.
@@ -157,6 +159,18 @@ When adding tests:
 
 - Flutter version pinned to `3.27.0` in CI
 - Java 17 (Zulu) for Android Gradle builds
-- Secrets required: `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`
+- Workflow triggers on:
+  - push to `main`
+  - push tags matching `v*` (example: `v0.0.9`)
+  - pull requests targeting `main`
+  - manual `workflow_dispatch`
+- For tag builds, CI derives `BUILD_NAME` from the tag by stripping the leading `v` (example: `v0.0.9` → `0.0.9`)
+- For manual runs with `create_release=true`, `release_tag` is used as the GitHub Release tag/name, and CI also strips a leading `v` when deriving the Android `build-name`
+- Release build command in CI is split-per-ABI for `android-arm` and `android-arm64`
+- Secrets required by the current workflow: `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `KEYSTORE_BASE64`, `PASSWORD`
+- CI writes `android/key.properties` with fixed `keyAlias=release` and uses the same `PASSWORD` secret for both `storePassword` and `keyPassword`
 - APK artifacts retained 30 days
-- Git tags matching `v*` trigger GitHub Release creation with APK attached
+- Tagging with `v*` auto-creates a GitHub Release and uploads:
+  - `build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`
+  - `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+- If the release is driven purely by a tag, `pubspec.yaml` does not need to be manually bumped for CI to stamp the APK with the matching version; CI derives that from the tag itself
