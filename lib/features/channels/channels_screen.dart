@@ -16,6 +16,29 @@ class ChannelsScreen extends StatefulWidget {
 class _ChannelsScreenState extends State<ChannelsScreen> {
   List<td.Chat> _chats = [];
   bool _isLoading = true;
+  ChatGroupFilter _filter = ChatGroupFilter.all;
+
+  List<td.Chat> get _filteredChats {
+    return switch (_filter) {
+      ChatGroupFilter.all => _chats,
+      ChatGroupFilter.channels => _chats
+          .where(
+            (chat) => chat.type is td.ChatTypeSupergroup &&
+                (chat.type as td.ChatTypeSupergroup).isChannel,
+          )
+          .toList(),
+      ChatGroupFilter.groups => _chats
+          .where(
+            (chat) => chat.type is td.ChatTypeBasicGroup ||
+                (chat.type is td.ChatTypeSupergroup &&
+                    !(chat.type as td.ChatTypeSupergroup).isChannel),
+          )
+          .toList(),
+      ChatGroupFilter.privateChats => _chats
+          .where((chat) => chat.type is td.ChatTypePrivate)
+          .toList(),
+    };
+  }
 
   @override
   void initState() {
@@ -90,40 +113,84 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _chats.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.chat_bubble_outline,
-                          size: 64, color: theme.colorScheme.outline),
-                      const SizedBox(height: 16),
-                      Text('No chats found',
-                          style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      FilledButton.tonal(
-                        onPressed: () {
-                          setState(() => _isLoading = true);
-                          _loadChats();
-                        },
-                        child: const Text('Refresh'),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadChats,
-                  child: ListView.builder(
-                    itemCount: _chats.length,
-                    itemBuilder: (context, index) {
-                      final chat = _chats[index];
-                      return _ChatTile(chat: chat);
-                    },
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<ChatGroupFilter>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ChatGroupFilter.all,
+                          label: Text('All'),
+                          icon: Icon(Icons.apps_outlined),
+                        ),
+                        ButtonSegment(
+                          value: ChatGroupFilter.channels,
+                          label: Text('Channels'),
+                          icon: Icon(Icons.campaign_outlined),
+                        ),
+                        ButtonSegment(
+                          value: ChatGroupFilter.groups,
+                          label: Text('Groups'),
+                          icon: Icon(Icons.group_outlined),
+                        ),
+                        ButtonSegment(
+                          value: ChatGroupFilter.privateChats,
+                          label: Text('Private'),
+                          icon: Icon(Icons.person_outline),
+                        ),
+                      ],
+                      selected: {_filter},
+                      onSelectionChanged: (selection) {
+                        setState(() {
+                          _filter = selection.first;
+                        });
+                      },
+                    ),
                   ),
                 ),
+                Expanded(
+                  child: _filteredChats.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.chat_bubble_outline,
+                                  size: 64, color: theme.colorScheme.outline),
+                              const SizedBox(height: 16),
+                              Text('No chats found in this group',
+                                  style: theme.textTheme.titleMedium),
+                              const SizedBox(height: 8),
+                              FilledButton.tonal(
+                                onPressed: () {
+                                  setState(() => _isLoading = true);
+                                  _loadChats();
+                                },
+                                child: const Text('Refresh'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadChats,
+                          child: ListView.builder(
+                            itemCount: _filteredChats.length,
+                            itemBuilder: (context, index) {
+                              final chat = _filteredChats[index];
+                              return _ChatTile(chat: chat);
+                            },
+                          ),
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }
+
+enum ChatGroupFilter { all, channels, groups, privateChats }
 
 class _ChatTile extends StatelessWidget {
   final td.Chat chat;
