@@ -158,10 +158,17 @@ class DownloadManager extends ChangeNotifier {
   /// Cancel a download
   void cancelDownload(int fileId) {
     final task = _tasks[fileId];
-    if (task != null && !task.isCompleted) {
-      task.isCancelled = true;
+    if (task != null && !task!.isCompleted) {
+      task!.isCancelled = true;
       notifyListeners();
-      _tdlib?.cancelDownloadFile(fileId);
+      _tasks.remove(fileId);
+      notifyListeners();
+    }
+  }
+
+  /// Remove a completed task from list
+  void removeTask(int fileId) {
+    if (_tasks.containsKey(fileId)) {
       _tasks.remove(fileId);
       notifyListeners();
     }
@@ -173,12 +180,12 @@ class DownloadManager extends ChangeNotifier {
     final task = _tasks[file.id];
 
     if (task != null) {
-      task.downloadedBytes = file.downloadedSize;
-      task.localPath = file.local.path;
+      task!.downloadedBytes = file.local.downloadedSize;
+      task!.localPath = file.local.path;
 
       if (file.local.isDownloadingCompleted) {
-        task.isCompleted = true;
-        task.isFailed = false;
+        task!.isCompleted = true;
+        task!.isFailed = false;
         notifyListeners();
         // Keep completed tasks briefly for UI feedback
         Future.delayed(const Duration(seconds: 5), () {
@@ -191,6 +198,15 @@ class DownloadManager extends ChangeNotifier {
     }
   }
 
+  /// Handle download errors
+  void handleDownloadError(int fileId, String error) {
+    final task = _tasks[fileId];
+    if (task != null) {
+      task!.isFailed = true;
+      notifyListeners();
+    }
+  }
+
   /// Get snapshot for a specific file
   DownloadTaskSnapshot? snapshotForFile(int fileId) {
     final task = _tasks[fileId];
@@ -199,8 +215,11 @@ class DownloadManager extends ChangeNotifier {
   }
 
   /// Get all active tasks
-  List<DownloadTaskSnapshot> get allTasks {
-    return _tasks.values.map((t) => DownloadTaskSnapshot.fromTask(t)).toList();
+  List<DownloadTaskSnapshot> get activeTasks {
+    return _tasks.values
+        .where((t) => !t.isCompleted && !t.isCancelled && !t.isFailed)
+        .map((t) => DownloadTaskSnapshot.fromTask(t))
+        .toList();
   }
 
   /// Get all completed tasks
@@ -211,26 +230,9 @@ class DownloadManager extends ChangeNotifier {
         .toList();
   }
 
-  /// Get all active (not completed) tasks
-  List<DownloadTaskSnapshot> get activeTasks {
-    return _tasks.values
-        .where((t) => !t.isCompleted && !t.isCancelled && !t.isFailed)
-        .map((t) => DownloadTaskSnapshot.fromTask(t))
-        .toList();
-  }
-
   /// Clear all completed tasks
   void clearCompleted() {
     _tasks.removeWhere((_, task) => task.isCompleted);
     notifyListeners();
-  }
-
-  /// Handle download errors
-  void handleDownloadError(int fileId, String error) {
-    final task = _tasks[fileId];
-    if (task != null) {
-      task.isFailed = true;
-      notifyListeners();
-    }
   }
 }

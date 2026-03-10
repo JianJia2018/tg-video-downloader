@@ -68,7 +68,7 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  /// Check if a message content matches the selected filter
+  /// Check if a message content matches selected filter
   bool _matchesFilter(td.MessageContent? content, MessageTypeFilter filter) {
     if (content == null) return false;
 
@@ -279,38 +279,33 @@ class _MessageDetailTile extends StatelessWidget {
       _ => null,
     };
   }
+
   String _getFileName() {
     final content = message.content;
     return switch (content) {
-      td.MessageVideo(video: final video) => video.video.fileName.isNotEmpty
-          ? video.video.fileName
-          : 'video_${message.id}.mp4',
+      td.MessageVideo() => 'video_${message.id}.mp4',
       td.MessagePhoto() => 'photo_${message.id}.jpg',
-      td.MessageDocument(document: final doc) => doc.document.fileName.isNotEmpty
-          ? doc.document.fileName
-          : 'document_${message.id}',
-      td.MessageAudio(audio: final audio) => audio.audio.fileName.isNotEmpty
-          ? audio.audio.fileName
-          : 'audio_${message.id}.mp3',
-      td.MessageAnimation(animation: final gif) => gif.animation.fileName.isNotEmpty
-          ? gif.animation.fileName
-          : 'gif_${message.id}.mp4',
+      td.MessageDocument() => 'document_${message.id}',
+      td.MessageAudio() => 'audio_${message.id}.mp3',
+      td.MessageAnimation() => 'gif_${message.id}.mp4',
       td.MessageVoiceNote() => 'voice_${message.id}.ogg',
       td.MessageText() => 'text_${message.id}.txt',
       _ => 'message_${message.id}',
     };
   }
+
   int? getFileSize() {
     final content = message.content;
     return switch (content) {
-      td.MessageVideo(video: final video) => video.video.video.expectedSize,
-      td.MessageDocument(document: final doc) => doc.document.document.expectedSize,
-      td.MessageAudio(audio: final audio) => audio.audio.audio.expectedSize,
-      td.MessageAnimation(animation: final gif) => gif.animation.animation.expectedSize,
-      td.MessageVoiceNote(voiceNote: final voice) => voice.voice.voice.expectedSize,
+      td.MessageVideo() => (content as td.MessageVideo).video.video.expectedSize,
+      td.MessageDocument() => (content as td.MessageDocument).document.document.expectedSize,
+      td.MessageAudio() => (content as td.MessageAudio).audio.audio.expectedSize,
+      td.MessageAnimation() => (content as td.MessageAnimation).animation.animation.expectedSize,
+      td.MessageVoiceNote() => (content as td.MessageVoiceNote).voiceNote.voice.expectedSize,
       _ => null,
     };
   }
+
   bool _isDownloadable() {
     return switch (messageType) {
       MessageTypeFilter.videos ||
@@ -367,11 +362,12 @@ class _MessageDetailTile extends StatelessWidget {
       theme: theme,
       task: task,
       icon: Icons.play_circle_fill,
-      title: video.fileName.isNotEmpty ? video.fileName : 'Video ${message.id}',
+      title: 'Video ${message.id}',
       subtitle: '${video.width}x${video.height} · ${_formatSize(video.video.expectedSize)}',
       duration: Duration(seconds: video.duration),
     );
   }
+
   Widget _buildPhotoTile(BuildContext context, ThemeData theme, DownloadTaskSnapshot? task) {
     final photo = (message.content as td.MessagePhoto);
     return _buildMediaTile(
@@ -391,7 +387,7 @@ class _MessageDetailTile extends StatelessWidget {
       theme: theme,
       task: task,
       icon: _getDocumentIcon(doc.document.mimeType),
-      title: doc.document.fileName.isNotEmpty ? doc.document.fileName : 'Document ${message.id}',
+      title: 'Document ${message.id}',
       subtitle: _formatSize(doc.document.document.expectedSize),
     );
   }
@@ -404,7 +400,7 @@ class _MessageDetailTile extends StatelessWidget {
       theme: theme,
       task: task,
       icon: Icons.music_note,
-      title: audio.fileName.isNotEmpty ? audio.fileName : 'Audio ${message.id}',
+      title: 'Audio ${message.id}',
       subtitle: '${audio.performer ?? 'Unknown'} · ${audio.title ?? 'Unknown'} · ${_formatDuration(duration)}',
     );
   }
@@ -416,7 +412,7 @@ class _MessageDetailTile extends StatelessWidget {
       theme: theme,
       task: task,
       icon: Icons.gif,
-      title: animation.animation.fileName.isNotEmpty ? animation.animation.fileName : 'GIF ${message.id}',
+      title: 'GIF ${message.id}',
       subtitle: '${animation.animation.width}x${animation.animation.height} · ${_formatSize(animation.animation.animation.expectedSize)}',
     );
   }
@@ -436,17 +432,6 @@ class _MessageDetailTile extends StatelessWidget {
   }
 
   Widget _buildStickerTile(ThemeData theme) {
-    final sticker = (message.content as td.MessageSticker).sticker;
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.primaryContainer,
-        child: Icon(Icons.sentiment_satisfied, color: theme.colorScheme.onPrimaryContainer),
-      ),
-      title: Text(sticker.emoji),
-      subtitle: Text('${sticker.width}x${sticker.height} · Set ${sticker.setId}'),
-      trailing: const Icon(Icons.emoji_emotions_outlined),
-    );
-  }
     final sticker = (message.content as td.MessageSticker).sticker;
     return ListTile(
       leading: CircleAvatar(
@@ -489,6 +474,7 @@ class _MessageDetailTile extends StatelessWidget {
       subtitle: message.content.runtimeType.toString(),
     );
   }
+
   Widget _buildMediaTile({
     required BuildContext context,
     required ThemeData theme,
@@ -542,10 +528,10 @@ class _MessageDetailTile extends StatelessWidget {
                   subtitle,
                   style: theme.textTheme.bodySmall,
                 ),
-                if (task != null && !task.isCompleted) ...[
+                if (task != null && !task!.isCompleted) ...[
                   const SizedBox(height: 6),
-                  LinearProgressIndicator(value: task.progress),
-                  Text(task.progressText, style: theme.textTheme.labelSmall),
+                  LinearProgressIndicator(value: task!.progress),
+                  Text(task!.progressText, style: theme.textTheme.labelSmall),
                 ],
               ],
             ),
@@ -595,6 +581,7 @@ class _MessageDetailTile extends StatelessWidget {
           totalBytes: getFileSize() ?? 0,
         );
   }
+
   IconData _getDocumentIcon(String? mimeType) {
     if (mimeType == null) return Icons.insert_drive_file;
 

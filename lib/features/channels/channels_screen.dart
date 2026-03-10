@@ -49,8 +49,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tdlib = context.read<TdlibService>();
       tdlib.logger = context.read<DebugLogService>();
-      final dm = context.read<DownloadManager>();
-      dm.attachTdlib(tdlib);
+      context.read<DownloadManager>().setTdlib(tdlib);
       context.read<DebugLogService>().info('Channels', 'Attached download manager and debug logger');
     });
   }
