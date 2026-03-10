@@ -226,9 +226,9 @@ class _ChatTile extends StatelessWidget {
             builder: (_) => DetailScreen(chat: chat),
           ),
         );
-      }
+      },
     );
-    );
+  }
   }
 
   String _getChatTypeLabel(td.ChatType type) => switch (type) {
