@@ -14,10 +14,14 @@ import 'package:tg_video_downloader/services/debug_log_service.dart';
 ///   - Updates isolate: receives responses and updates from TDLib
 class TdlibService extends ChangeNotifier {
   static bool _pluginInitialized = false;
+  static const _updatePollInterval = Duration(milliseconds: 250);
+  static const _maxUpdatesPerDrain = 24;
   int? _clientId;
   bool _isInitialized = false;
   bool _isAuthorized = false;
   DebugLogService? logger;
+  Timer? _updatesTimer;
+  bool _isDrainingUpdates = false;
 
   // Auth state
   String _authState = 'initial';
@@ -69,7 +73,7 @@ class TdlibService extends ChangeNotifier {
         useSecretChats: false,
         systemLanguageCode: 'en',
         deviceModel: 'Android',
-        applicationVersion: '0.0.6',
+        applicationVersion: '0.0.9',
         systemVersion: 'Android',
         databaseEncryptionKey: '',
       ));
@@ -85,23 +89,47 @@ class TdlibService extends ChangeNotifier {
   }
 
   void _startUpdatesListener() {
-    // Poll TDLib for updates in a periodic timer
-    // In production, this should be in a separate Isolate
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    // Poll TDLib in batches to reduce frequent UI-isolate wakeups.
+    _updatesTimer?.cancel();
+    _updatesTimer = Timer.periodic(_updatePollInterval, (timer) {
       if (_clientId == null) {
         timer.cancel();
         return;
       }
-      _receiveUpdates();
+      _drainUpdates();
     });
   }
 
-  void _receiveUpdates() {
+  void _drainUpdates() {
+    if (_isDrainingUpdates) {
+      return;
+    }
+
+    _isDrainingUpdates = true;
+    try {
+      var processed = 0;
+      while (processed < _maxUpdatesPerDrain && _receiveSingleUpdate()) {
+        processed++;
+      }
+
+      if (processed == _maxUpdatesPerDrain) {
+        scheduleMicrotask(_drainUpdates);
+      }
+    } finally {
+      _isDrainingUpdates = false;
+    }
+  }
+
+  bool _receiveSingleUpdate() {
     final response = TdPlugin.instance.tdReceive();
-    if (response == null) return;
+    if (response == null) {
+      return false;
+    }
 
     final object = convertJsonToObject(response);
-    if (object == null) return;
+    if (object == null) {
+      return true;
+    }
 
     // Check if this is a response to a pending invoke
     if (object.extra != null) {
@@ -117,6 +145,8 @@ class TdlibService extends ChangeNotifier {
       logger?.info('TDLib', 'Authorization state update: ${object.authorizationState.runtimeType}');
       _handleAuthState(object.authorizationState);
     }
+
+    return true;
   }
 
   void _handleAuthState(td.AuthorizationState state) {
@@ -262,6 +292,7 @@ class TdlibService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _updatesTimer?.cancel();
     _updateController.close();
     _clientId = null;
     super.dispose();
