@@ -13,6 +13,7 @@ class DownloadTask {
   int downloadedBytes;
   bool isCompleted;
   bool isCancelled;
+  bool isFailed;
   String? localPath;
 
   DownloadTask({
@@ -24,19 +25,37 @@ class DownloadTask {
     this.downloadedBytes = 0,
     this.isCompleted = false,
     this.isCancelled = false,
+    this.isFailed = false,
     this.localPath,
   });
 
-  double get progress =>
-      totalBytes > 0 ? downloadedBytes / totalBytes : 0.0;
+  double get progress {
+    if (totalBytes <= 0) return 0;
+    return downloadedBytes / totalBytes;
+  }
 
   String get progressText {
-    final downloaded = (downloadedBytes / 1024 / 1024).toStringAsFixed(1);
-    final total = (totalBytes / 1024 / 1024).toStringAsFixed(1);
-    return '$downloaded / $total MB';
+    if (isCompleted) return 'Completed';
+    if (isCancelled) return 'Cancelled';
+    if (isFailed) return 'Failed';
+    if (totalBytes <= 0) return 'Preparing...';
+    final downloaded = _formatBytes(downloadedBytes);
+    final total = _formatBytes(totalBytes);
+    final percent = (progress * 100).toStringAsFixed(0);
+    return '$downloaded / $total ($percent%)';
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }
 
+/// Immutable snapshot of a download task for UI consumption
 class DownloadTaskSnapshot {
   final int fileId;
   final String fileName;
@@ -44,6 +63,7 @@ class DownloadTaskSnapshot {
   final String progressText;
   final bool isCompleted;
   final bool isCancelled;
+  final bool isFailed;
   final String? localPath;
 
   const DownloadTaskSnapshot({
@@ -53,6 +73,7 @@ class DownloadTaskSnapshot {
     required this.progressText,
     required this.isCompleted,
     required this.isCancelled,
+    required this.isFailed,
     required this.localPath,
   });
 
@@ -64,6 +85,7 @@ class DownloadTaskSnapshot {
       progressText: task.progressText,
       isCompleted: task.isCompleted,
       isCancelled: task.isCancelled,
+      isFailed: task.isFailed,
       localPath: task.localPath,
     );
   }
@@ -81,6 +103,7 @@ class DownloadTaskSnapshot {
         other.progressText == progressText &&
         other.isCompleted == isCompleted &&
         other.isCancelled == isCancelled &&
+        other.isFailed == isFailed &&
         other.localPath == localPath;
   }
 
@@ -92,74 +115,21 @@ class DownloadTaskSnapshot {
         progressText,
         isCompleted,
         isCancelled,
+        isFailed,
         localPath,
       );
 }
 
-/// Manages download queue and progress tracking
+/// Manages download queue and tracks download progress
 class DownloadManager extends ChangeNotifier {
-  final Map<int, DownloadTask> _tasks = {};
   TdlibService? _tdlib;
-  StreamSubscription? _updateSubscription;
-  Timer? _progressNotifyTimer;
+  final Map<int, DownloadTask> _tasks = {};
 
-  List<DownloadTask> get tasks => _tasks.values.toList();
-  List<DownloadTask> get activeTasks =>
-      _tasks.values.where((t) => !t.isCompleted && !t.isCancelled).toList();
-  List<DownloadTask> get completedTasks =>
-      _tasks.values.where((t) => t.isCompleted).toList();
-  DownloadTask? taskForFile(int fileId) => _tasks[fileId];
-  DownloadTaskSnapshot? snapshotForFile(int fileId) {
-    final task = _tasks[fileId];
-    if (task == null) {
-      return null;
-    }
-
-    return DownloadTaskSnapshot.fromTask(task);
-  }
-
-  void attachTdlib(TdlibService tdlib) {
+  void setTdlib(TdlibService tdlib) {
     _tdlib = tdlib;
-    _updateSubscription?.cancel();
-    _updateSubscription = tdlib.updates.listen(_handleUpdate);
   }
 
-  void _handleUpdate(td.TdObject update) {
-    if (update is td.UpdateFile) {
-      final file = update.file;
-      final task = _tasks[file.id];
-      if (task == null) return;
-
-      final previousBytes = task.downloadedBytes;
-      final previousCompleted = task.isCompleted;
-      final previousPath = task.localPath;
-
-      task.downloadedBytes = file.local.downloadedSize;
-      task.isCompleted = file.local.isDownloadingCompleted;
-      if (task.isCompleted) {
-        task.localPath = file.local.path;
-      }
-
-      final changed = previousBytes != task.downloadedBytes ||
-          previousCompleted != task.isCompleted ||
-          previousPath != task.localPath;
-      if (changed) {
-        _scheduleProgressNotify();
-      }
-    }
-  }
-
-  void _scheduleProgressNotify() {
-    if (_progressNotifyTimer?.isActive ?? false) {
-      return;
-    }
-
-    _progressNotifyTimer = Timer(
-      const Duration(milliseconds: 80),
-      notifyListeners,
-    );
-  }
-
+  /// Start downloading a file
   Future<void> startDownload({
     required int fileId,
     required int chatId,
@@ -167,8 +137,10 @@ class DownloadManager extends ChangeNotifier {
     required String fileName,
     required int totalBytes,
   }) async {
-    if (_tdlib == null) return;
-    if (_tasks.containsKey(fileId)) return; // Already downloading
+    if (_tasks.containsKey(fileId)) {
+      // Already downloading
+      return;
+    }
 
     _tasks[fileId] = DownloadTask(
       fileId: fileId,
@@ -176,30 +148,89 @@ class DownloadManager extends ChangeNotifier {
       messageId: messageId,
       fileName: fileName,
       totalBytes: totalBytes,
+      isFailed: false,
     );
     notifyListeners();
 
-    await _tdlib!.downloadFile(fileId);
+    await _tdlib?.downloadFile(fileId);
   }
 
-  Future<void> cancelDownload(int fileId) async {
+  /// Cancel a download
+  void cancelDownload(int fileId) {
     final task = _tasks[fileId];
-    if (task == null) return;
+    if (task != null && !task.isCompleted) {
+      task.isCancelled = true;
+      notifyListeners();
+      _tdlib?.cancelDownloadFile(fileId);
+      _tasks.remove(fileId);
+      notifyListeners();
+    }
+  }
 
-    task.isCancelled = true;
-    await _tdlib?.cancelDownload(fileId);
+  /// Handle file download progress updates from TDLib
+  void handleFileUpdate(td.UpdateFile update) {
+    final file = update.file;
+    final task = _tasks[file.id];
+
+    if (task != null) {
+      task.downloadedBytes = file.downloadedSize;
+      task.localPath = file.local.path;
+
+      if (file.local.isDownloadingCompleted) {
+        task.isCompleted = true;
+        task.isFailed = false;
+        notifyListeners();
+        // Keep completed tasks briefly for UI feedback
+        Future.delayed(const Duration(seconds: 5), () {
+          _tasks.remove(file.id);
+          notifyListeners();
+        });
+      } else {
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Get snapshot for a specific file
+  DownloadTaskSnapshot? snapshotForFile(int fileId) {
+    final task = _tasks[fileId];
+    if (task == null) return null;
+    return DownloadTaskSnapshot.fromTask(task);
+  }
+
+  /// Get all active tasks
+  List<DownloadTaskSnapshot> get allTasks {
+    return _tasks.values.map((t) => DownloadTaskSnapshot.fromTask(t)).toList();
+  }
+
+  /// Get all completed tasks
+  List<DownloadTaskSnapshot> get completedTasks {
+    return _tasks.values
+        .where((t) => t.isCompleted)
+        .map((t) => DownloadTaskSnapshot.fromTask(t))
+        .toList();
+  }
+
+  /// Get all active (not completed) tasks
+  List<DownloadTaskSnapshot> get activeTasks {
+    return _tasks.values
+        .where((t) => !t.isCompleted && !t.isCancelled && !t.isFailed)
+        .map((t) => DownloadTaskSnapshot.fromTask(t))
+        .toList();
+  }
+
+  /// Clear all completed tasks
+  void clearCompleted() {
+    _tasks.removeWhere((_, task) => task.isCompleted);
     notifyListeners();
   }
 
-  void removeTask(int fileId) {
-    _tasks.remove(fileId);
-    notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _updateSubscription?.cancel();
-    _progressNotifyTimer?.cancel();
-    super.dispose();
+  /// Handle download errors
+  void handleDownloadError(int fileId, String error) {
+    final task = _tasks[fileId];
+    if (task != null) {
+      task.isFailed = true;
+      notifyListeners();
+    }
   }
 }
