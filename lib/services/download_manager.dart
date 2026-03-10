@@ -37,17 +37,86 @@ class DownloadTask {
   }
 }
 
+class DownloadTaskSnapshot {
+  final int fileId;
+  final String fileName;
+  final double progress;
+  final String progressText;
+  final bool isCompleted;
+  final bool isCancelled;
+  final String? localPath;
+
+  const DownloadTaskSnapshot({
+    required this.fileId,
+    required this.fileName,
+    required this.progress,
+    required this.progressText,
+    required this.isCompleted,
+    required this.isCancelled,
+    required this.localPath,
+  });
+
+  factory DownloadTaskSnapshot.fromTask(DownloadTask task) {
+    return DownloadTaskSnapshot(
+      fileId: task.fileId,
+      fileName: task.fileName,
+      progress: task.progress,
+      progressText: task.progressText,
+      isCompleted: task.isCompleted,
+      isCancelled: task.isCancelled,
+      localPath: task.localPath,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    return other is DownloadTaskSnapshot &&
+        other.fileId == fileId &&
+        other.fileName == fileName &&
+        other.progress == progress &&
+        other.progressText == progressText &&
+        other.isCompleted == isCompleted &&
+        other.isCancelled == isCancelled &&
+        other.localPath == localPath;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        fileId,
+        fileName,
+        progress,
+        progressText,
+        isCompleted,
+        isCancelled,
+        localPath,
+      );
+}
+
 /// Manages download queue and progress tracking
 class DownloadManager extends ChangeNotifier {
   final Map<int, DownloadTask> _tasks = {};
   TdlibService? _tdlib;
   StreamSubscription? _updateSubscription;
+  Timer? _progressNotifyTimer;
 
   List<DownloadTask> get tasks => _tasks.values.toList();
   List<DownloadTask> get activeTasks =>
       _tasks.values.where((t) => !t.isCompleted && !t.isCancelled).toList();
   List<DownloadTask> get completedTasks =>
       _tasks.values.where((t) => t.isCompleted).toList();
+  DownloadTask? taskForFile(int fileId) => _tasks[fileId];
+  DownloadTaskSnapshot? snapshotForFile(int fileId) {
+    final task = _tasks[fileId];
+    if (task == null) {
+      return null;
+    }
+
+    return DownloadTaskSnapshot.fromTask(task);
+  }
 
   void attachTdlib(TdlibService tdlib) {
     _tdlib = tdlib;
@@ -61,13 +130,34 @@ class DownloadManager extends ChangeNotifier {
       final task = _tasks[file.id];
       if (task == null) return;
 
+      final previousBytes = task.downloadedBytes;
+      final previousCompleted = task.isCompleted;
+      final previousPath = task.localPath;
+
       task.downloadedBytes = file.local.downloadedSize;
       task.isCompleted = file.local.isDownloadingCompleted;
       if (task.isCompleted) {
         task.localPath = file.local.path;
       }
-      notifyListeners();
+
+      final changed = previousBytes != task.downloadedBytes ||
+          previousCompleted != task.isCompleted ||
+          previousPath != task.localPath;
+      if (changed) {
+        _scheduleProgressNotify();
+      }
     }
+  }
+
+  void _scheduleProgressNotify() {
+    if (_progressNotifyTimer?.isActive ?? false) {
+      return;
+    }
+
+    _progressNotifyTimer = Timer(
+      const Duration(milliseconds: 80),
+      notifyListeners,
+    );
   }
 
   Future<void> startDownload({
@@ -109,6 +199,7 @@ class DownloadManager extends ChangeNotifier {
   @override
   void dispose() {
     _updateSubscription?.cancel();
+    _progressNotifyTimer?.cancel();
     super.dispose();
   }
 }

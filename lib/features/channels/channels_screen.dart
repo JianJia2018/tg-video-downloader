@@ -60,31 +60,32 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dm = context.watch<DownloadManager>();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('TG Downloader'),
         actions: [
-          if (dm.activeTasks.isNotEmpty)
-            Badge(
-              label: Text('${dm.activeTasks.length}'),
-              child: IconButton(
+          Selector<DownloadManager, int>(
+            selector: (_, manager) => manager.activeTasks.length,
+            builder: (context, activeCount, _) {
+              final button = IconButton(
                 icon: const Icon(Icons.download),
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DownloadsScreen()),
                 ),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DownloadsScreen()),
-              ),
-            ),
+              );
+
+              if (activeCount == 0) {
+                return button;
+              }
+
+              return Badge(
+                label: Text('$activeCount'),
+                child: button,
+              );
+            },
+          ),
         ],
       ),
       body: _isLoading
@@ -225,7 +226,6 @@ class _ChatMediaScreenState extends State<_ChatMediaScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dm = context.watch<DownloadManager>();
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.chat.title)),
@@ -257,24 +257,27 @@ class _ChatMediaScreenState extends State<_ChatMediaScreen> {
                       );
                     }
                     final msg = _videoMessages[index];
-                    final video =
-                        (msg.content as td.MessageVideo).video;
+                    final video = (msg.content as td.MessageVideo).video;
                     final fileId = video.video.id;
-                    final task = dm.tasks.where((t) => t.fileId == fileId).firstOrNull;
 
-                    return _VideoTile(
-                      video: video,
-                      message: msg,
-                      task: task,
-                      onDownload: () {
-                        dm.startDownload(
-                          fileId: fileId,
-                          chatId: widget.chat.id,
-                          messageId: msg.id,
-                          fileName: video.fileName.isNotEmpty
-                              ? video.fileName
-                              : 'video_${msg.id}.mp4',
-                          totalBytes: video.video.expectedSize,
+                    return Selector<DownloadManager, DownloadTaskSnapshot?>(
+                      selector: (_, manager) => manager.snapshotForFile(fileId),
+                      builder: (context, task, _) {
+                        return _VideoTile(
+                          video: video,
+                          message: msg,
+                          task: task,
+                          onDownload: () {
+                            context.read<DownloadManager>().startDownload(
+                              fileId: fileId,
+                              chatId: widget.chat.id,
+                              messageId: msg.id,
+                              fileName: video.fileName.isNotEmpty
+                                  ? video.fileName
+                                  : 'video_${msg.id}.mp4',
+                              totalBytes: video.video.expectedSize,
+                            );
+                          },
                         );
                       },
                     );
@@ -287,7 +290,7 @@ class _ChatMediaScreenState extends State<_ChatMediaScreen> {
 class _VideoTile extends StatelessWidget {
   final td.Video video;
   final td.Message message;
-  final DownloadTask? task;
+  final DownloadTaskSnapshot? task;
   final VoidCallback onDownload;
 
   const _VideoTile({
