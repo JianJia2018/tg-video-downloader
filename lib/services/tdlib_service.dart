@@ -31,9 +31,9 @@ class TdlibService extends ChangeNotifier {
   Timer? _updatesTimer;
   Timer? _storageOptimizationTimer;
   bool _isDrainingUpdates = false;
-  Timer? _storageOptimizationTimer;
-  bool _isDrainingUpdates = false;
-  bool _isDrainingUpdates = false;
+
+  // Isolate service for background updates
+  final TdlibIsolateService _isolateService = TdlibIsolateService();
 
   // Auth state
   String _authState = 'initial';
@@ -494,3 +494,4 @@ class TdlibService extends ChangeNotifier {
     _clientId = null;
     super.dispose();
   }
+}
