@@ -82,7 +82,33 @@ class TgDownloaderApp extends StatelessWidget {
   }
 }
 
-class AppRoot extends StatelessWidget {
+class AppRoot extends StatefulWidget {
+  const AppRoot({super.key});
+
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  @override
+  void initState() {
+    super.initState();
+    _listenToTdlibUpdates();
+  }
+
+  void _listenToTdlibUpdates() {
+    final tdlib = context.read<TdlibService>();
+    final downloadManager = context.read<DownloadManager>();
+    
+    tdlib.updates.listen((update) {
+      if (update is td.UpdateFile) {
+        downloadManager.handleFileUpdate(update);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
   const AppRoot({super.key});
 
   @override
