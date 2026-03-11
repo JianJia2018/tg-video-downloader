@@ -229,7 +229,7 @@ class _ChatTile extends StatelessWidget {
       },
     );
   }
-  }
+
 
   String _getChatTypeLabel(td.ChatType type) => switch (type) {
         td.ChatTypeSupergroup(isChannel: true) => 'Channel',
