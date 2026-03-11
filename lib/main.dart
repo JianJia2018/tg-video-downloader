@@ -10,16 +10,6 @@ import 'package:tg_video_downloader/features/auth/auth_screen.dart';
 import 'package:tg_video_downloader/features/auth/init_error_screen.dart';
 import 'package:tg_video_downloader/features/channels/channels_screen.dart';
 import 'package:tg_video_downloader/widgets/debug_log_fab.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:tg_video_downloader/services/tdlib_service.dart';
-import 'package:tg_video_downloader/services/download_manager.dart';
-import 'package:tg_video_downloader/services/debug_log_service.dart';
-import 'package:tg_video_downloader/features/auth/api_credentials_screen.dart';
-import 'package:tg_video_downloader/features/auth/auth_screen.dart';
-import 'package:tg_video_downloader/features/auth/init_error_screen.dart';
-import 'package:tg_video_downloader/features/channels/channels_screen.dart';
-import 'package:tg_video_downloader/widgets/debug_log_fab.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,33 +84,6 @@ class TgDownloaderApp extends StatelessWidget {
 }
 
 class AppRoot extends StatefulWidget {
-  const AppRoot({Key? key}) : super(key: key);
-
-  @override
-  State<AppRoot> createState() => _AppRootState();
-}
-
-class _AppRootState extends State<AppRoot> {
-  @override
-  void initState() {
-    super.initState();
-    _listenToTdlibUpdates();
-  }
-
-  void _listenToTdlibUpdates() {
-    final tdlib = context.read<TdlibService>();
-    final downloadManager = context.read<DownloadManager>();
-
-    tdlib.updates.listen((update) {
-      if (update is td.UpdateFile) {
-        downloadManager.handleFileUpdate(update);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tdlib = context.watch<TdlibService>();
   const AppRoot({super.key});
 
   @override
@@ -128,26 +91,30 @@ class _AppRootState extends State<AppRoot> {
 }
 
 class _AppRootState extends State<AppRoot> {
+  StreamSubscription<td.TdObject>? _updatesSubscription;
+
   @override
   void initState() {
     super.initState();
     _listenToTdlibUpdates();
   }
 
+  @override
+  void dispose() {
+    _updatesSubscription?.cancel();
+    super.dispose();
+  }
+
   void _listenToTdlibUpdates() {
     final tdlib = context.read<TdlibService>();
     final downloadManager = context.read<DownloadManager>();
-    
-    tdlib.updates.listen((update) {
+
+    _updatesSubscription = tdlib.updates.listen((update) {
       if (update is td.UpdateFile) {
         downloadManager.handleFileUpdate(update);
       }
     });
   }
-
-  @override
-  Widget build(BuildContext context) {
-  const AppRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
