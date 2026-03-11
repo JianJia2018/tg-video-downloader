@@ -97,18 +97,7 @@ dynamic _parseTdLibResponse(String rawJson) {
   }
   return null;
 }
-  try {
-    final decoded = jsonDecode(rawJson);
-    if (decoded is Map<String, dynamic>) {
-      final obj = convertJsonToObject(decoded);
-      return obj;
-    }
-  } catch (e) {
-    // Return raw error on parse failure
-    return {'@type': 'error', 'message': 'Parse error: $e'};
-  }
-  return null;
-}
+
 
 /// Manages TDLib updates in a background Isolate
 ///
