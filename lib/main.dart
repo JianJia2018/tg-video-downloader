@@ -70,12 +70,17 @@ class TgDownloaderApp extends StatelessWidget {
         ),
         themeMode: ThemeMode.system,
         builder: (context, child) {
-          return Stack(
-            children: [
-              child ?? const SizedBox.shrink(),
-              DebugLogFab(navigatorKey: appNavigatorKey),
-            ],
-          );
+          // DebugLogFab disabled due to performance impact
+          // - It uses context.select<DebugLogService, int>((s) => s.entryCount)
+          // - Every log entry triggers a rebuild at app root level
+          // - Combined with TDLib 250ms polling, this causes frequent rebuilds
+          return child ?? const SizedBox.shrink();
+          // return Stack(
+          //   children: [
+          //     child ?? const SizedBox.shrink(),
+          //     DebugLogFab(navigatorKey: appNavigatorKey),
+          //   ],
+          // );
         },
         home: const AppRoot(),
       ),
@@ -118,32 +123,40 @@ class _AppRootState extends State<AppRoot> {
 
   @override
   Widget build(BuildContext context) {
-    final tdlib = context.watch<TdlibService>();
+    // Use context.select to only rebuild on specific state changes
+    // - context.watch<TdlibService>() rebuilds on ANY notifyListeners() call
+    // - TdlibService calls notifyListeners() 9+ times on various events
+    // - TDLib polling every 250ms can trigger frequent updates
+    final credentialsLoaded = context.select<TdlibService, bool>((s) => s.credentialsLoaded);
+    final hasCredentials = context.select<TdlibService, bool>((s) => s.hasCredentials);
+    final initError = context.select<TdlibService, String?>((s) => s.initError);
+    final isInitialized = context.select<TdlibService, bool>((s) => s.isInitialized);
+    final isInitializing = context.select<TdlibService, bool>((s) => s.isInitializing);
+    final isAuthorized = context.select<TdlibService, bool>((s) => s.isAuthorized);
 
-    if (!tdlib.credentialsLoaded) {
+    if (!credentialsLoaded) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (!tdlib.hasCredentials) {
+    if (!hasCredentials) {
       return const ApiCredentialsScreen();
     }
 
-    if (tdlib.initError != null && !tdlib.isInitialized) {
+    if (initError != null && !isInitialized) {
       return const InitErrorScreen();
     }
 
-    if (tdlib.isInitializing || !tdlib.isInitialized) {
+    if (isInitializing || !isInitialized) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (!tdlib.isAuthorized) {
+    if (!isAuthorized) {
       return const AuthScreen();
     }
 
     return const ChannelsScreen();
-  }
 }
