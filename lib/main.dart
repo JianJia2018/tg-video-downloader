@@ -159,4 +159,5 @@ class _AppRootState extends State<AppRoot> {
     }
 
     return const ChannelsScreen();
+  }
 }
