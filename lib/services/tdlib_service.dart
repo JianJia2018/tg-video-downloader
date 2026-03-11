@@ -7,6 +7,7 @@ import 'package:handy_tdlib/handy_tdlib.dart' show convertJsonToObject;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tg_video_downloader/services/debug_log_service.dart';
+import 'package:tg_video_downloader/services/tdlib_isolate_service.dart';
 
 /// Core TDLib service — manages client lifecycle, auth, and API calls.
 ///
@@ -469,6 +470,7 @@ class TdlibService extends ChangeNotifier {
       logger?.info('TDLib', 'Starting storage optimization');
 
       final response = await invoke(td.OptimizeStorage(
+        fileTypes: [],            // Default: all types except thumbnails, profile photos, stickers and wallpapers
         size: 100 * 1024 * 1024, // 100 MB limit
         ttl: 7 * 24 * 60 * 60,    // 7 days
         count: -1,                 // No limit on file count
