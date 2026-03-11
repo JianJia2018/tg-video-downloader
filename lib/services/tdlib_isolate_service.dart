@@ -88,6 +88,16 @@ void _startPolling(int clientId, SendPort mainSendPort) {
 /// Parse TDLib JSON response
 dynamic _parseTdLibResponse(String rawJson) {
   try {
+    // convertJsonToObject handles JSON parsing internally
+    final obj = convertJsonToObject(rawJson);
+    return obj;
+  } catch (e) {
+    // Return raw error on parse failure
+    return {'@type': 'error', 'message': 'Parse error: $e'};
+  }
+  return null;
+}
+  try {
     final decoded = jsonDecode(rawJson);
     if (decoded is Map<String, dynamic>) {
       final obj = convertJsonToObject(decoded);

@@ -471,6 +471,8 @@ class TdlibService extends ChangeNotifier {
 
       final response = await invoke(td.OptimizeStorage(
         fileTypes: [],            // Default: all types except thumbnails, profile photos, stickers and wallpapers
+        chatIds: [],            // No specific chat filter
+        excludeChatIds: [],      // No chat exclusions
         size: 100 * 1024 * 1024, // 100 MB limit
         ttl: 7 * 24 * 60 * 60,    // 7 days
         count: -1,                 // No limit on file count
