@@ -125,6 +125,34 @@ class DownloadManager extends ChangeNotifier {
   TdlibService? _tdlib;
   final Map<int, DownloadTask> _tasks = {};
 
+  // Throttling configuration - reduces UI rebuild frequency
+  Timer? _throttleTimer;
+  bool _pendingNotification = false;
+  static const _throttleDuration = Duration(milliseconds: 100);
+
+  /// Throttled notification to reduce UI rebuild frequency
+  void _scheduleNotification() {
+    if (_throttleTimer != null) {
+      // Already scheduled, just mark as pending
+      _pendingNotification = true;
+      return;
+    }
+
+    // First notification fires immediately for responsiveness
+    notifyListeners();
+
+    // Set up throttle window - ignore subsequent updates for 100ms
+    _throttleTimer = Timer(_throttleDuration, () {
+      _throttleTimer = null;
+
+      // If another update came in during the throttle window, notify once
+      if (_pendingNotification) {
+        _pendingNotification = false;
+        notifyListeners();
+      }
+    });
+  }
+
   void setTdlib(TdlibService tdlib) {
     _tdlib = tdlib;
   }
@@ -158,10 +186,11 @@ class DownloadManager extends ChangeNotifier {
   /// Cancel a download
   void cancelDownload(int fileId) {
     final task = _tasks[fileId];
-    if (task != null && !task!.isCompleted) {
-      task!.isCancelled = true;
+    if (task != null && !task.isCompleted) {
+      task.isCancelled = true;
       notifyListeners();
       _tasks.remove(fileId);
+      _pendingNotification = false; // Reset throttle state when removing tasks
       notifyListeners();
     }
   }
@@ -180,20 +209,20 @@ class DownloadManager extends ChangeNotifier {
     final task = _tasks[file.id];
 
     if (task != null) {
-      task!.downloadedBytes = file.local.downloadedSize;
-      task!.localPath = file.local.path;
+      task.downloadedBytes = file.local.downloadedSize;
+      task.localPath = file.local.path;
 
       if (file.local.isDownloadingCompleted) {
-        task!.isCompleted = true;
-        task!.isFailed = false;
-        notifyListeners();
+        task.isCompleted = true;
+        task.isFailed = false;
+        notifyListeners(); // Immediate notification for completion
         // Keep completed tasks briefly for UI feedback
         Future.delayed(const Duration(seconds: 5), () {
           _tasks.remove(file.id);
           notifyListeners();
         });
       } else {
-        notifyListeners();
+        _scheduleNotification(); // Throttled notification for progress updates
       }
     }
   }
@@ -202,7 +231,7 @@ class DownloadManager extends ChangeNotifier {
   void handleDownloadError(int fileId, String error) {
     final task = _tasks[fileId];
     if (task != null) {
-      task!.isFailed = true;
+      task.isFailed = true;
       notifyListeners();
     }
   }
@@ -233,6 +262,13 @@ class DownloadManager extends ChangeNotifier {
   /// Clear all completed tasks
   void clearCompleted() {
     _tasks.removeWhere((_, task) => task.isCompleted);
+    _pendingNotification = false; // Reset throttle state
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _throttleTimer?.cancel();
+    super.dispose();
   }
 }

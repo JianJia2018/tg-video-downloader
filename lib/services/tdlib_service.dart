@@ -16,6 +16,7 @@ import 'package:tg_video_downloader/services/debug_log_service.dart';
 class TdlibService extends ChangeNotifier {
   static bool _pluginInitialized = false;
   static const _updatePollInterval = Duration(milliseconds: 250);
+  static const _optionBatchSize = 10;
   static const _maxUpdatesPerDrain = 24;
   static const _prefsApiIdKey = 'telegram_api_id';
   static const _prefsApiHashKey = 'telegram_api_hash';
@@ -28,6 +29,10 @@ class TdlibService extends ChangeNotifier {
   bool _credentialsLoaded = false;
   DebugLogService? logger;
   Timer? _updatesTimer;
+  Timer? _storageOptimizationTimer;
+  bool _isDrainingUpdates = false;
+  Timer? _storageOptimizationTimer;
+  bool _isDrainingUpdates = false;
   bool _isDrainingUpdates = false;
 
   // Auth state
@@ -140,6 +145,16 @@ class TdlibService extends ChangeNotifier {
         throw Exception('TDLib init error ${response.code}: ${response.message}');
       }
 
+      await _configurePerformanceOptions();
+
+      _isInitialized = true;
+      _startStorageOptimization();
+      await _configurePerformanceOptions();
+
+      _isInitialized = true;
+      _startStorageOptimization();
+      await _configurePerformanceOptions();
+
       _isInitialized = true;
       _isInitializing = false;
       logger?.info('TDLib', 'Initialization finished');
@@ -175,6 +190,57 @@ class TdlibService extends ChangeNotifier {
     _authError = null;
     _authState = 'initial';
     notifyListeners();
+  }
+
+  /// Configure TDLib performance options for better resource usage
+  Future<void> _configurePerformanceOptions() async {
+    try {
+      logger?.info('TDLib', 'Configuring performance options');
+
+      // Reduce message memory cache time (default 60s for users, 1800s for bots)
+      await _setOption('message_unload_delay', 60);
+
+      // Enable storage optimizer
+      await _setOption('use_storage_optimizer', true);
+
+      // Disable network statistics to reduce disk I/O
+      await _setOption('disable_network_statistics', true);
+      await _setOption('disable_persistent_network_statistics', true);
+
+      // Disable time adjustment protection to reduce disk usage
+      await _setOption('disable_time_adjustment_protection', true);
+
+      // Disable top chats statistics
+      await _setOption('disable_top_chats', true);
+
+      // Ignore inline thumbnails if not displaying message previews
+      await _setOption('ignore_inline_thumbnails', true);
+
+      // Prefer IPv6 for potentially better performance
+      await _setOption('prefer_ipv6', true);
+
+      logger?.info('TDLib', 'Performance options configured successfully');
+    } catch (e) {
+      // Log but don't fail initialization if option setting fails
+      logger?.warning('TDLib', 'Some performance options failed: $e');
+    }
+  }
+
+  /// Helper to set a TDLib option with proper error handling
+  Future<void> _setOption(String name, dynamic value) async {
+    try {
+      final optionValue = value is bool
+          ? td.OptionValueBoolean(value: value)
+          : td.OptionValueInteger(value: value as int);
+
+      final response = await invoke(td.SetOption(name: name, value: optionValue));
+
+      if (response is td.TdError) {
+        logger?.warning('TDLib', 'Failed to set option $name: ${response.message}');
+      }
+    } catch (e) {
+      logger?.warning('TDLib', 'Exception setting option $name: $e');
+    }
   }
 
   void _startUpdatesListener() {
@@ -379,11 +445,52 @@ class TdlibService extends ChangeNotifier {
     ));
   }
 
+  // ─── Storage optimization ───
+
+  /// Start periodic storage optimization (daily)
+  void _startStorageOptimization() {
+    _storageOptimizationTimer?.cancel();
+    // Run every 24 hours
+    _storageOptimizationTimer = Timer.periodic(const Duration(hours: 24), (_) {
+      optimizeStorage();
+    });
+
+    // Run initial optimization after a short delay
+    Future.delayed(const Duration(minutes: 5), () {
+      optimizeStorage();
+    });
+  }
+
+  /// Optimize storage to free up disk space
+  Future<void> optimizeStorage() async {
+    if (_clientId == null) return;
+
+    try {
+      logger?.info('TDLib', 'Starting storage optimization');
+
+      final response = await invoke(td.OptimizeStorage(
+        size: 100 * 1024 * 1024, // 100 MB limit
+        ttl: 7 * 24 * 60 * 60,    // 7 days
+        count: -1,                 // No limit on file count
+        immunityDelay: 3600,       // 1 hour immunity
+        returnDeletedFileStatistics: false,
+      ));
+
+      if (response is td.TdError) {
+        logger?.warning('TDLib', 'Storage optimization returned error: ${response.message}');
+      } else {
+        logger?.info('TDLib', 'Storage optimization completed');
+      }
+    } catch (e) {
+      logger?.warning('TDLib', 'Storage optimization failed: $e');
+    }
+  }
+
   @override
   void dispose() {
     _updatesTimer?.cancel();
+    _storageOptimizationTimer?.cancel();
     _updateController.close();
     _clientId = null;
     super.dispose();
   }
-}
